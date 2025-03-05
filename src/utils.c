@@ -59,8 +59,8 @@ monster initmonster(bool alive, int status, loc location, loc lastSeenPC, mapObj
     newMon.status = status;
     newMon.location = location;
     newMon.lastSeenPC = lastSeenPC;
-    // newMon.speed = (rand()%16) + 5;
-    newMon.speed = 5;
+    newMon.speed = (rand()%16) + 5;
+    // newMon.speed = 5;
     newMon.hasPath = false;
     newMon.hasVision = false;
     newMon.indexInPath = 0;

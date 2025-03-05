@@ -212,4 +212,9 @@ void movePC(mapObj mainGrid,loc* currentLoc, int newY, int newX){
         mainGrid.grid[currentLoc->y][currentLoc->x].repr = '#';
         mainGrid.grid[currentLoc->y][currentLoc->x].hardness = 0;
     }
+    if(mainGrid.grid[currentLoc->y][currentLoc->x].isMonster){
+        printf("Monster %c is killed!\n", mainGrid.grid[currentLoc->y][currentLoc->x].pMon->repr);
+        mainGrid.grid[currentLoc->y][currentLoc->x].isMonster = false;
+        mainGrid.grid[currentLoc->y][currentLoc->x].pMon = NULL;
+    }
 }

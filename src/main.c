@@ -204,17 +204,16 @@ void runGameLoop(mainMap main) {
         monster *m;
         int speed;
 
-        printf("now is turn: %d\n", current_time);
+        // printf("now is turn: %d\n", current_time);
         if (current.type == 0) {
-            // Monster
-            printf("---------------------------------------- BOT %c -------------------------------------------\n", current.mon->repr);
+            printf("------------------------------------ BOT %c -------------------------------------\n", current.mon->repr);
         } else {
             // PC
-            printf("---------------------------------------- PC -------------------------------------------\n");
+            printf("------------------------------------   PC   ------------------------------------\n");
         }
         
         printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
-        printf("-----------------------------------------------------------------------------------------------------\n");
+        printf("--------------------------------------------------------------------------------\n");
         if (current.type == 1) {
             if (handleInput(&main, true)) {
                 break;
@@ -230,8 +229,6 @@ void runGameLoop(mainMap main) {
                 }
                 ml[i]->hasPath = false;
                 ml[i]->hasVision = false;
-
-                printf("look at line of sight of [%c]: ", ml[i]->repr);
                 // if(getchar() == 'q'){
                 //     break;
                 // }
@@ -241,7 +238,7 @@ void runGameLoop(mainMap main) {
             m = current.mon;
             moveMonsterCombined(main, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
             speed = m->speed;
-            printf("Press enter to move monster: ");
+            // printf("Press enter to move monster: ");
             // if(getchar() == 'q'){
             //     break;
             // }
@@ -255,13 +252,14 @@ void runGameLoop(mainMap main) {
         insertMinHeap(&pq, data, EVENT, false);
         if (main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster) {
             clearScreen();
+            main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isPC = false;
             printf("Monster has killed the PC\n");
-            printf("---------------------------------------- GG -------------------------------------------\n");
+            printf("------------------------------------   GG   ------------------------------------\n");
             printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
-            printf("----------------------------------------- GG ------------------------------------------------------------\n");
+            printf("------------------------------------   GG   ------------------------------------\n");
             break;
         }
-        usleep(50000);
+        usleep(250000);
     }
 
     free(pq.array);
