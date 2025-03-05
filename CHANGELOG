@@ -2,7 +2,14 @@
 
 ## [Unreleased]
 
-## [1.0.0] - 2023-3-03
+## [1.0.0] - 2023-3-04
+### Added
+- added fix for mainloop
+- added lastSeen pc visibility
+- added player movement
+- added player movement randomizer
+
+## [1.0.0] - 2023-3-04
 ### Added
 - added reading from hexadecimal
 - added main loop

@@ -165,9 +165,8 @@ bool handleInput(mainMap *main, bool bot){
     return false;
 }
 
-
-void runGameLoop(mainMap main) {
-    int monstercount = 5;
+void runGameLoop(mainMap main, int ct) {
+    int monstercount = ct;
     monster* ml[monstercount];
     MinHeap pq;
 
@@ -271,6 +270,7 @@ int main(int argc, char *argv[]){
     int gridSizeY = 19;
     int minimumCount = 6;
     int maximumCount = 6;
+    int nummon = 10;
     
     bool save = false;
     bool load = false;
@@ -294,7 +294,15 @@ int main(int argc, char *argv[]){
             save = true;
         } else if (strcmp(argv[i], "--load") == 0) {
             load = true;
-        } else {
+        } else if(strcmp(argv[i], "--nummon") == 0){
+            if (i+1 >= argc){
+                printf("Please provide number of monsters\n");
+                return 0;
+            }
+            nummon = atoi(argv[i+1]); 
+            i++;
+        }
+        else {
             printf("Unknown option: %s\n", argv[i]);
             return 0;
         }
@@ -323,7 +331,7 @@ int main(int argc, char *argv[]){
     djikstras(main.mainMap, main.pcLoc, false);
     djikstras(main.mainMap, main.pcLoc, true);
 
-    runGameLoop(main);
+    runGameLoop(main, nummon);
 
     return 0;
 }
