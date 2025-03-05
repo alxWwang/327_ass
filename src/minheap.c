@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
-#include "minheap.h"
-#include "utils.h"
+#include "header/minheap.h"
+#include "header/utils.h"
 
 MinHeap* createMinHeap(int cap) {
     MinHeap* heap = (MinHeap*)malloc(sizeof(MinHeap));
@@ -56,14 +56,4 @@ HeapNode extractMin(MinHeap* heap, bool tunnel) {
 
 bool isEmpty(MinHeap* heap) {
     return heap->size == 0;
-}
-
-void printHeap(MinHeap *heap) {
-    for (int i = 0; i < heap->size; i++) {
-        if (heap->array[i].type == TILE) {
-            printf("Tile: [%d, %d, %d]\n", heap->array[i].data.tileData.hardness, heap->array[i].data.tileData.location.x, heap->array[i].data.tileData.location.y);
-        } else {
-            printf("Event: [time: %d, type: %d]\n", heap->array[i].data.eventData.time, heap->array[i].data.eventData.type);
-        }
-    }
 }

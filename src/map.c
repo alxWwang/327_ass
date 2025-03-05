@@ -5,12 +5,12 @@
 #include <time.h>
 #include <limits.h>
 
-#include "monsters.h"
-#include "minheap.h"
-#include "djikstras.h"
-#include "map.h"
-#include "structs.h"
-#include "utils.h"
+#include "header/monsters.h"
+#include "header/minheap.h"
+#include "header/djikstras.h"
+#include "header/map.h"
+#include "header/structs.h"
+#include "header/utils.h"
 
 mapObj generateGrid(int gridSizeX, int gridSizeY, char type){
     tile **grid = (tile **)malloc(gridSizeY * sizeof(tile *));

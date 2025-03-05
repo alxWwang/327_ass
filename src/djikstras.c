@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
-#include "djikstras.h"
-#include "utils.h"
-#include "minheap.h"
+#include "header/djikstras.h"
+#include "header/utils.h"
+#include "header/minheap.h"
 
 
 void djikstras(mapObj map, loc pcLoc, bool tunnel) {

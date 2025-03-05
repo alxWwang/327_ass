@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#include "structs.h"
-#include "utils.h"
+#include "header/structs.h"
+#include "header/utils.h"
 
 
 char get_hex_representation(uint8_t characteristics) {
@@ -164,21 +164,6 @@ int custom_round(double value) {
     } else {
         return (int)(value - 0.5);  // Round down if the value is negative
     }
-}
-
-int** getGridHardness(tile **grid, int gridSizeX, int gridSizeY){
-    int** hardness = (int**)malloc(gridSizeX * gridSizeY * sizeof(int*));
-    for (int i = 0; i < gridSizeY; i++) {
-        hardness[i] = (int *)malloc(gridSizeX * sizeof(int));
-    }
-
-    for (int i = 0; i< gridSizeY; i++){
-        for (int j = 0; j < gridSizeX; j++){
-            hardness[i][j] = grid[i][j].hardness;
-        }
-    }
-
-    return hardness;
 }
 
 tile** getSurrounding(loc atLocation, mapObj mainMap){

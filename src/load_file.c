@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "structs.h"
-#include "utils.h"
-#include "map.h"
+#include "header/structs.h"
+#include "header/utils.h"
+#include "header/map.h"
 
 
 #if defined(__APPLE__)

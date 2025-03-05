@@ -6,14 +6,14 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "djikstras.h"
-#include "monsters.h"
-#include "minheap.h"
-#include "structs.h"
-#include "utils.h"
-#include "map.h"
-#include "load_file.h"
-#include "save_file.h"
+#include "header/djikstras.h"
+#include "header/monsters.h"
+#include "header/minheap.h"
+#include "header/structs.h"
+#include "header/utils.h"
+#include "header/map.h"
+#include "header/load_file.h"
+#include "header/save_file.h"
 #include <arpa/inet.h>
 
 

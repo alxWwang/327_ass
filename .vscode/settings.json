@@ -1,6 +1,14 @@
 {
     "files.associations": {
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "structs.h": "c",
+        "djikstras.h": "c",
+        "monsters.h": "c",
+        "utils.h": "c",
+        "map.h": "c",
+        "load_file.h": "c",
+        "save_file.h": "c",
+        "minheap.h": "c"
     },
     "cSpell.words": [
         "repr"

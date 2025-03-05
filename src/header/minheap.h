@@ -36,6 +36,4 @@ MinHeap* createMinHeap(int cap);
 void insertMinHeap(MinHeap *heap, HeapData data, HeapType type, bool tunel);
 HeapNode extractMin(MinHeap* heap, bool tunnel);
 bool isEmpty(MinHeap* heap);
-void printHeap(MinHeap *heap);
-
 #endif

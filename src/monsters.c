@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <limits.h>
-#include "monsters.h"
-#include "minheap.h"
-#include "djikstras.h"
-#include "map.h"
+#include "header/monsters.h"
+#include "header/minheap.h"
+#include "header/djikstras.h"
+#include "header/map.h"
 
 void printGridWithDistances(mapObj grid, monster *mon, bool tunnel, bool telepathic) {
     for (int i = 0; i < 19 + 2; i++) {
