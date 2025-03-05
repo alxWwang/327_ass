@@ -1,0 +1,26 @@
+## Changelog
+
+## [Unreleased]
+
+## [1.0.0] - 2023-3-03
+### Added
+- added reading from hexadecimal
+- added main loop
+- added priority queue
+
+
+## [1.0.0] - 2023-1-03
+### Added
+- added monsters movement (telepathic and erratic)
+- combined all movement to run from a single function (loopable)
+
+
+## [1.0.0] - 2023-28-02
+### Added
+- added monsters movement (intelligent and non intelligent)
+
+
+## [1.0.0] - 2023-27-02
+### Added
+- added monsters
+- added monsters movement (tunneling and not)
