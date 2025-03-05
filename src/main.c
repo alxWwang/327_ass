@@ -178,6 +178,7 @@ void runGameLoop(mainMap main, int ct) {
     data.eventData.time = 0;
     data.eventData.type = 1;
     insertMinHeap(&pq, data, EVENT, false);
+    int deadMonsterCount = 0;
 
     for (int i = 0; i < monstercount; i++) {
         unsigned int monsterType = rand() % 16;
@@ -214,15 +215,20 @@ void runGameLoop(mainMap main, int ct) {
         printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
         printf("--------------------------------------------------------------------------------\n");
         if (current.type == 1) {
-            if (handleInput(&main, true)) {
+            if (handleInput(&main, false)) {
                 break;
             };
             speed = 10;
             djikstras(main.mainMap, main.pcLoc, false);
             djikstras(main.mainMap, main.pcLoc, true);
             m = NULL;
-
+            
+            
             for (int i = 0; i < monstercount; i++) {
+                if(ml[i]->alive == false){
+                    deadMonsterCount++;
+                    continue;
+                }
                 if (inLineOfSight(main.mainMap, main.pcLoc, ml[i]->location)) {
                     ml[i]->lastSeenPC = main.pcLoc;
                 }
@@ -235,6 +241,9 @@ void runGameLoop(mainMap main, int ct) {
             
         } else {
             m = current.mon;
+            if(m->alive == false){
+                continue;
+            }
             moveMonsterCombined(main, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
             speed = m->speed;
             // printf("Press enter to move monster: ");
@@ -249,10 +258,10 @@ void runGameLoop(mainMap main, int ct) {
         data.eventData.mon = m;
         data.eventData.type = current.type;
         insertMinHeap(&pq, data, EVENT, false);
-        if (main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster) {
+        if (main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster || deadMonsterCount == monstercount) {
             clearScreen();
             main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isPC = false;
-            printf("Monster has killed the PC\n");
+            printf("%s",deadMonsterCount == monstercount ? "PC wins!\n":"Monster has killed the PC\n");
             printf("------------------------------------   GG   ------------------------------------\n");
             printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
             printf("------------------------------------   GG   ------------------------------------\n");
