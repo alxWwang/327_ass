@@ -110,7 +110,7 @@ loc* getStraightLine(mapObj mainGrid, loc fromPoint, loc toPoint){
             x1 += sx; 
         }
     }
-
+    //hello git
     return linePath;
 }
 
