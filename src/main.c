@@ -6,7 +6,9 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "linked_list.h"
+#include "djikstras.h"
+#include "monsters.h"
+#include "minheap.h"
 #include "structs.h"
 #include "utils.h"
 #include "map.h"
@@ -21,34 +23,10 @@
     #define CLEAR_CMD "clear"
 #endif
 
-
-typedef struct {
-    int time;
-    int type; // 0 for monster, 1 for PC
-    monster* mon; 
-} event;
-
-typedef struct {
-    event* event;
-    int size;
-    int capacity;
-} MinHeap2;
-
 struct Node *pHead = NULL;
 
 void clearScreen() {
     system(CLEAR_CMD);
-}
-
-void printMinHeap2(const MinHeap2 *pq) {
-    printf("MinHeap2 (size = %d):\n", pq->size);
-    for (int i = 0; i < pq->size; i++) {
-        printf("[%d, %d]", pq->event[i].time, pq->event[i].type);
-        if (i < pq->size - 1) {
-            printf(" ");
-        }
-    }
-    printf("\n");
 }
 
 mainMap generate(int gridSizeX, int gridSizeY, int min_count, int max_count){
@@ -144,51 +122,6 @@ void freeGrid(mapObj **grid, int rows) {
     free(grid);
 }
 
-MinHeap2* createMinHeap2(int cap){
-    MinHeap2* heap = (MinHeap2*)malloc(sizeof(MinHeap2));
-    heap->event = (event*)malloc(cap * sizeof(event));
-    heap->size = 0;
-    heap->capacity = cap;
-    return heap;
-}
-
-void insertMinHeap2(MinHeap2 *heap, event obj){
-    int i = heap->size++;
-    heap->event[i] = obj;
-
-    while( i && heap->event[i].time < heap->event[(i-1)/2].time){
-        event temp = heap->event[i];
-        heap->event[i] = heap->event[(i-1)/2];
-        heap->event[(i-1)/2] = temp;
-        i = (i-1)/2;
-    }
-}
-
-event extractMin2(MinHeap2* heap) {
-    event root = heap->event[0];
-    heap->event[0] = heap->event[--heap->size];
-
-    int i = 0;
-    while (2 * i + 1 < heap->size) {
-        int left = 2 * i + 1, right = 2 * i + 2;
-        int smallest = left;
-        if (right < heap->size && heap->event[right].time < heap->event[left].time)
-            smallest = right;
-        if (heap->event[i].time <= heap->event[smallest].time)
-            break;
-        event temp = heap->event[i];
-        heap->event[i] = heap->event[smallest];
-        heap->event[smallest] = temp;
-        i = smallest;
-    }
-
-    return root;
-}
-
-bool isEmpty2(MinHeap2* heap) {
-    return heap->size == 0;
-}
-
 bool handleInput(mainMap *main, bool bot){
     printf("select w/a/s/d to move, q to quit\n");
     char c;
@@ -230,6 +163,108 @@ bool handleInput(mainMap *main, bool bot){
     }
 
     return false;
+}
+
+
+void runGameLoop(mainMap main) {
+    int monstercount = 5;
+    monster* ml[monstercount];
+    MinHeap pq;
+
+    pq.size = 0;
+    pq.capacity = 50; // or however large you need
+    pq.array = malloc(sizeof(HeapNode) * pq.capacity);
+
+    HeapData data;
+    data.eventData.time = 0;
+    data.eventData.type = 1;
+    insertMinHeap(&pq, data, EVENT, false);
+
+    for (int i = 0; i < monstercount; i++) {
+        unsigned int monsterType = rand() % 16;
+        int randomX = 0;
+        int randomY = 0;
+        do {
+            randomX = rand() % main.mainMap.lenX;
+            randomY = rand() % main.mainMap.lenY;
+        } while(main.mainMap.grid[randomY][randomX].repr != '.' || main.mainMap.grid[randomY][randomX].isMonster || main.mainMap.grid[randomY][randomX].isPC);
+        ml[i] = addMonster(main.mainMap, true, monsterType, initloc(randomX, randomY), initloc(randomX, randomY));
+        HeapData data;
+        data.eventData.time = 0;
+        data.eventData.mon = ml[i];
+        data.eventData.type = 0;
+        insertMinHeap(&pq, data, EVENT, false);
+    }
+
+    while (!isEmpty(&pq)) {
+        clearScreen();
+        event current = extractMin(&pq, false).data.eventData;
+        int current_time = current.time;
+        
+        monster *m;
+        int speed;
+
+        printf("now is turn: %d\n", current_time);
+        if (current.type == 0) {
+            // Monster
+            printf("---------------------------------------- BOT %c -------------------------------------------\n", current.mon->repr);
+        } else {
+            // PC
+            printf("---------------------------------------- PC -------------------------------------------\n");
+        }
+        
+        printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
+        printf("-----------------------------------------------------------------------------------------------------\n");
+        if (current.type == 1) {
+            if (handleInput(&main, true)) {
+                break;
+            };
+            speed = 10;
+            djikstras(main.mainMap, main.pcLoc, false);
+            djikstras(main.mainMap, main.pcLoc, true);
+            m = NULL;
+
+            for (int i = 0; i < monstercount; i++) {
+                if (inLineOfSight(main.mainMap, main.pcLoc, ml[i]->location)) {
+                    ml[i]->lastSeenPC = main.pcLoc;
+                }
+                ml[i]->hasPath = false;
+                ml[i]->hasVision = false;
+
+                printf("look at line of sight of [%c]: ", ml[i]->repr);
+                // if(getchar() == 'q'){
+                //     break;
+                // }
+            }
+            
+        } else {
+            m = current.mon;
+            moveMonsterCombined(main, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
+            speed = m->speed;
+            printf("Press enter to move monster: ");
+            // if(getchar() == 'q'){
+            //     break;
+            // }
+        }
+
+        int next_time = current_time + (1000 / speed);
+        HeapData data;
+        data.eventData.time = next_time;
+        data.eventData.mon = m;
+        data.eventData.type = current.type;
+        insertMinHeap(&pq, data, EVENT, false);
+        if (main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster) {
+            clearScreen();
+            printf("Monster has killed the PC\n");
+            printf("---------------------------------------- GG -------------------------------------------\n");
+            printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
+            printf("----------------------------------------- GG ------------------------------------------------------------\n");
+            break;
+        }
+        usleep(50000);
+    }
+
+    free(pq.array);
 }
 
 int main(int argc, char *argv[]){
@@ -290,170 +325,7 @@ int main(int argc, char *argv[]){
     djikstras(main.mainMap, main.pcLoc, false);
     djikstras(main.mainMap, main.pcLoc, true);
 
-    // for (int i = 0; i< gridSizeY+2; i++){
-    //     for (int j = 0; j < gridSizeX+2; j++){
-    //         if (main.mainMap.grid[i][j].dist == INT_MAX){
-    //             printf("   .  ");
-    //         }else{
-    //             printf(" [%3d]", main.mainMap.grid[i][j].hardness);
-    //         }
-    //         // printf(" [%3d]", main.mainMap.grid[i][j].hardness);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("---------------------------------------------");
-
-    // for (int i = 0; i< gridSizeY+2; i++){
-    //     for (int j = 0; j < gridSizeX+2; j++){
-    //         if (mon.monsterVision.grid[i][j].dist == INT_MAX){
-    //             printf("   .  ");
-    //         }else{
-    //             printf(" [%3d]", mon.monsterVision.grid[i][j].dist);
-    //         }
-    //     }
-    //     printf("\n");
-    // }
-
-    // for (int i = 0; i< gridSizeY+2; i++){
-    //     for (int j = 0; j < gridSizeX+2; j++){
-    //         if (main.mainMap.grid[i][j].distTunnel == 2147483647){
-    //             printf("   .  ");
-    //         }else{
-    //             printf(" [%3d]", main.mainMap.grid[i][j].distTunnel);
-    //         }
-    //     }
-    //     printf("\n");
-    // }
-
-
-
-
-    // int i = 0;
-
-
-
-    // while(!moveMonsterCombined(main, mon, mon->tuneling, mon->erratic, mon->telepathy, mon->intelligence)){
-    //     printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-    //     i+=1;
-    // }
-    // i = 0;
-    // while(!moveMonsterCombined(main, mon2, mon2->tuneling, mon2->erratic, mon2->telepathy, mon2->intelligence)){
-    //     printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-    //     i+=1;
-    // }
-    // printf("total runs are: %d", i);
-    // printf("monster location: [%d, %d]\n", mon.location.x, mon.location.y);
-
-    // lets say PC has a speed of 10, Monsters have a speed of 5-20
-    // the player will move every floor(1000/10) = 100 turns
-    // a monster with speed 5 will move every floor(1000/5) = 200 turns
-    // a monster with speed 20 will move every floor(1000/20) = 50 turns
-
-    // add next events to the priority queue finding the next minimum turn
-    // lets say its currently the first (Real) turn. because the monster will run every 50 turns, it moves first
-    // then prompt user to move PC, 
-    //     if PC moves, 
-    //         reset the map dist: djikstras
-    //         reset hasPath, hasVision to false -> 
-    //               because the PC has moved, all straight line path has to move to the new location of the PC 
-    //     if a monster is in a line of sight to the PC, 
-    //         add last seen to the monster
-    //         reset hasPath, hasVision to false
-    //               because the PC has moved, all straight line path has to move to the new location of the PC 
-    //err, tunnel, tele, intell
-
-    int monstercount = 5;
-    monster* ml[monstercount];
-    MinHeap2 pq;
-
-    pq.size = 0;
-    pq.capacity = 50; // or however large you need
-    pq.event = malloc(sizeof(event) * pq.capacity);
-
-    printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-
-    for (int i = 0; i<monstercount ; i++){
-        unsigned int monsterType = rand() % 16;
-        int randomX = 0;
-        int randomY = 0;
-        while(main.mainMap.grid[randomY][randomX].repr != '#'){
-            randomX = rand() % main.mainMap.lenX;
-            randomY = rand() % main.mainMap.lenY;
-        }
-        ml[i] = addMonster(main.mainMap ,true, monsterType , initloc(randomX, randomY), initloc(randomX, randomY));
-        event e1 = { .time = 0, .mon = ml[i], .type = 0 };
-        insertMinHeap2(&pq, e1);
-    }
-    event e3 = { .time = 0, .type = 1 };
-    insertMinHeap2(&pq, e3);
-    char* line = "wasd";
-
-    while (!isEmpty2(&pq)) {
-        clearScreen();
-        event current = extractMin2(&pq);
-        int current_time = current.time;
-        
-        monster *m;
-        int speed;
-
-        printf("now is turn: %d\n", current_time);
-        if (current.type == 0) {
-            // Monster
-            printf("---------------------------------------- BOT %c -------------------------------------------\n",current.mon->repr);
-        } else {
-            // PC
-            printf("---------------------------------------- PC -------------------------------------------\n");
-        }
-        
-        printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-        printf("-----------------------------------------------------------------------------------------------------\n");
-
-        if(current.type == 1){
-            if (handleInput(&main, true)){
-                break;
-            };
-            speed = 10;
-            djikstras(main.mainMap, main.pcLoc, false);
-            djikstras(main.mainMap, main.pcLoc, true);
-            m = NULL;
-
-            for(int i = 0; i< monstercount; i ++){
-                if(inLineOfSight(main.mainMap, main.pcLoc, ml[i]->location)){
-                    ml[i]->lastSeenPC = main.pcLoc;
-                }
-                ml[i]->lastSeenPC = main.pcLoc;
-                ml[i]->hasPath = false;
-                ml[i]->hasVision = false;
-            }
-        }else{
-            m = current.mon;
-            moveMonsterCombined(main,m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
-            speed = m->speed;
-            printf("Press enter to move monster: ");
-            // if(getchar() == 'q'){
-            //     break;
-            // }
-        }
-
-        int next_time = current_time + (1000 / speed);
-        event new_e;
-        new_e.time = next_time;
-        new_e.mon  = m;
-        new_e.type = current.type;
-        insertMinHeap2(&pq, new_e);
-        printMinHeap2(&pq);
-        if(main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster){
-            // clearScreen();
-            printf("Monster has killed the PC\n");
-            printf("---------------------------------------- GG -------------------------------------------\n");
-            printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-            printf("----------------------------------------- GG ------------------------------------------------------------\n");
-            break;
-        }
-        // usleep(5000000);
-
-    }
-
+    runGameLoop(main);
 
     return 0;
 }

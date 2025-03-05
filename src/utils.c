@@ -3,10 +3,10 @@
 #include <stdint.h>   
 #include <stdbool.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "structs.h"
 #include "utils.h"
-#include "linked_list.h"
 
 
 char get_hex_representation(uint8_t characteristics) {
@@ -43,6 +43,8 @@ tile inittile(char repr, int hardness, loc location){
     newTile.location = location;
     newTile.isMonster = false;
     newTile.pMon = NULL;
+    newTile.dist = INT_MAX;
+    newTile.distTunnel = INT_MAX;
     return newTile;
 }
 
@@ -72,10 +74,10 @@ monster initmonster(bool alive, int status, loc location, loc lastSeenPC, mapObj
 
     newMon.repr = get_hex_representation(status);
     
-    printf("Erratic: %s\n", newMon.erratic ? "true" : "false");
-    printf("Tunnel: %s\n", newMon.tuneling ? "true" : "false");
-    printf("Telepathic: %s\n", newMon.telepathy ? "true" : "false");
-    printf("Intelligent: %s\n", newMon.intelligence ? "true" : "false");
+    // printf("Erratic: %s\n", newMon.erratic ? "true" : "false");
+    // printf("Tunnel: %s\n", newMon.tuneling ? "true" : "false");
+    // printf("Telepathic: %s\n", newMon.telepathy ? "true" : "false");
+    // printf("Intelligent: %s\n", newMon.intelligence ? "true" : "false");
 
     return newMon;
 }
@@ -134,7 +136,7 @@ void printGrid(tile **grid, int gridSizeX, int gridSizeY){
         for (int j = 0; j < gridSizeX; j++){
             tile* g = &(grid[i][j]);
             if (g->isPC){
-                printf("@");
+                printf("\033[32m@\033[0m");
             }
             else if (g->isMonster){
                 printf("\033[31m%c\033[0m",g->pMon->repr);
@@ -205,22 +207,98 @@ tile** getSurrounding(loc atLocation, mapObj mainMap){
     return neighbors;
 }
 
-// tile **getSurrounding(loc l, mapObj mainGrid) {
-//     // Allocate array of 8 pointers (4 adjacent + 4 diagonals)
-//     tile **neighbors = (tile **)malloc(sizeof(tile *) * 8);
+/* ---------------------- Linked List Functions ---------------------- */
 
-//     // Cardinal directions (adjacent) first
-//     neighbors[0] = &mainGrid.grid[l.y - 1][l.x];     // Up
-//     neighbors[1] = &mainGrid.grid[l.y][l.x + 1];     // Right
-//     neighbors[2] = &mainGrid.grid[l.y + 1][l.x];     // Down
-//     neighbors[3] = &mainGrid.grid[l.y][l.x - 1];     // Left
+void insertLinkedList(Node **pHead, loc location) {
+    Node *newNode = (Node *)malloc(sizeof(Node));
+    if (!newNode) {
+        printf("Memory allocation failed!\n");
+        return;
+    }
+    newNode->data = location;
+    newNode->pNext = *pHead;
+    *pHead = newNode;
+}
 
-//     // Diagonals next
-//     neighbors[4] = &mainGrid.grid[l.y - 1][l.x + 1]; // Up-right
-//     neighbors[5] = &mainGrid.grid[l.y + 1][l.x + 1]; // Down-right
-//     neighbors[6] = &mainGrid.grid[l.y + 1][l.x - 1]; // Down-left
-//     neighbors[7] = &mainGrid.grid[l.y - 1][l.x - 1]; // Up-left
+Node* traverseNodes(Node *pHead, int atIndex) {
+    Node *traverse = pHead;
+    while (atIndex != 0 && traverse != NULL) {
+        traverse = traverse->pNext;
+        atIndex--;
+    }
+    return traverse;
+}
 
-//     return neighbors;
-// }
+void printAllNodes(Node *pHead) {
+    Node *traverse = pHead;
+    while (traverse != NULL) {
+        printf("[%d, %d] ", traverse->data.y, traverse->data.x);
+        traverse = traverse->pNext;
+    }
+    printf("\n");
+}
+
+/* ---------------------- RoomInfo Functions ---------------------- */
+
+void insertRoomInfo(roomInfo **pHead, loc location, int lenX, int lenY) {
+    roomInfo *newNode = (roomInfo *)malloc(sizeof(roomInfo));
+    if (!newNode) {
+        printf("Memory allocation failed!\n");
+        return;
+    }
+    newNode->location = location;
+    newNode->lenX = lenX;
+    newNode->lenY = lenY;
+    newNode->pNext = *pHead;
+    *pHead = newNode;
+}
+
+roomInfo* traverseRoomInfo(roomInfo *pHead, int atIndex) {
+    roomInfo *traverse = pHead;
+    while (atIndex != 0 && traverse != NULL) {
+        traverse = traverse->pNext;
+        atIndex--;
+    }
+    return traverse;
+}
+
+void printAllRoomInfo(roomInfo *pHead) {
+    roomInfo *traverse = pHead;
+    while (traverse != NULL) {
+        printf("loc: [%d, %d] dim: [%d, %d]\n",
+               traverse->location.y, traverse->location.x,
+               traverse->lenX, traverse->lenY);
+        traverse = traverse->pNext;
+    }
+    printf("\n");
+}
+
+/* ------------------- Distance Utilities ------------------- */
+
+int getDist(const tile *t, bool tunnel) {
+    return tunnel ? t->distTunnel : t->dist;
+}
+
+void setDist(tile *t, bool tunnel, int value) {
+    if (tunnel) {
+        t->distTunnel = value;
+    } else {
+        t->dist = value;
+    }
+}
+
+void setAllDistToInf(mapObj mainmap, bool tunnel) {
+    for (int i = 0; i < mainmap.lenY; i++) {
+        for (int j = 0; j < mainmap.lenX; j++) {
+            setDist(&(mainmap.grid[i][j]), tunnel, INT_MAX);
+        }
+    }
+}
+
+bool isTunnel(bool q, tile *curr) {
+    if (q) { 
+        return true;
+    }
+    return curr->hardness == 0;
+}
 

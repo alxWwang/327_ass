@@ -2,51 +2,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Game",
-            "type": "cppdbg",
+            // Example: Launch "myProgram" with CodeLLDB
+            "name": "Debug with CodeLLDB",
+            "type": "lldb",             // This tells VS Code to use the CodeLLDB extension
             "request": "launch",
+            
+            // The compiled program you want to debug.
+            // Adjust path/name as needed, e.g. a "build/" folder or a custom name
             "program": "${workspaceFolder}/game",
-            "args": [
-                "--load"
-            ],
-            "stopAtEntry": false,
+            
+            // Arguments to pass to the program
+            "args": ["--save"],
+
+            // Working directory for the debug session
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "lldb",
+
+            // An optional preLaunchTask to build your program before starting the debugger
             "preLaunchTask": "make",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for LLDB",
-                    "text": "settings set target.inline-breakpoint-strategy always",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-        {
-            "name": "C/C++: gcc build and debug active file",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "lldb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for LLDB",
-                    "text": "settings set target.inline-breakpoint-strategy always",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "settings set target.x86-disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: gcc build active file"
+            
+            // Whether to stop on the 'main' function immediately on startup
+            "stopOnEntry": false,
+
+            // Choose how/where to show program output:
+            // - "integratedTerminal": show in VS Code’s built-in debug console
+            // - "externalTerminal": spawn a new external terminal window
+            "terminal": "integrated"
         }
     ]
 }

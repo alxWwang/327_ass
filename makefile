@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -g -I./include -Wno-unused-parameter
 OBJ_DIR = obj
 
 # Source files
-SRC = src/main.c src/linked_list.c src/utils.c src/map.c src/load_file.c src/save_file.c
+SRC = src/main.c src/djikstras.c src/minheap.c src/monsters.c src/utils.c src/map.c src/load_file.c src/save_file.c
 
 # Object files
 OBJ = $(SRC:src/%.c=$(OBJ_DIR)/%.o)
