@@ -137,7 +137,7 @@ void printGrid(tile **grid, int gridSizeX, int gridSizeY){
                 printf("@");
             }
             else if (g->isMonster){
-                printf("%c",g->pMon->repr);
+                printf("\033[31m%c\033[0m",g->pMon->repr);
             }
             else{
                 printf("%c", g->repr);

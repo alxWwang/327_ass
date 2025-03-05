@@ -189,9 +189,17 @@ bool isEmpty2(MinHeap2* heap) {
     return heap->size == 0;
 }
 
-bool handleInput(mainMap *main){
+bool handleInput(mainMap *main, bool bot){
     printf("select w/a/s/d to move, q to quit\n");
-    char c = getchar();
+    char c;
+    if (!bot){
+        c = getchar();
+        int ch;
+        while ((ch = getchar()) != '\n' && ch != EOF) {}
+    }else{
+        char* line = "wasd";
+        c = line[rand() % 4];
+    }
 
     switch (c) {
         case 'w':
@@ -372,12 +380,13 @@ int main(int argc, char *argv[]){
             randomX = rand() % main.mainMap.lenX;
             randomY = rand() % main.mainMap.lenY;
         }
-        ml[i] = addMonster(main.mainMap ,true, monsterType , initloc(randomX, randomY), main.pcLoc);
+        ml[i] = addMonster(main.mainMap ,true, monsterType , initloc(randomX, randomY), initloc(randomX, randomY));
         event e1 = { .time = 0, .mon = ml[i], .type = 0 };
         insertMinHeap2(&pq, e1);
     }
     event e3 = { .time = 0, .type = 1 };
     insertMinHeap2(&pq, e3);
+    char* line = "wasd";
 
     while (!isEmpty2(&pq)) {
         clearScreen();
@@ -390,25 +399,28 @@ int main(int argc, char *argv[]){
         printf("now is turn: %d\n", current_time);
         if (current.type == 0) {
             // Monster
-            printf("---------------------------------------- BOT %c -------------------------------------------\n",
-                   current.mon->repr);
+            printf("---------------------------------------- BOT %c -------------------------------------------\n",current.mon->repr);
         } else {
             // PC
             printf("---------------------------------------- PC -------------------------------------------\n");
         }
         
         printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
-        printf("-----------------------------------------------------------------------------------------------------\n", (current.type == 0) ? "BOT" : "PC");
+        printf("-----------------------------------------------------------------------------------------------------\n");
 
         if(current.type == 1){
-            if (handleInput(&main)){
+            if (handleInput(&main, true)){
                 break;
             };
             speed = 10;
             djikstras(main.mainMap, main.pcLoc, false);
             djikstras(main.mainMap, main.pcLoc, true);
             m = NULL;
+
             for(int i = 0; i< monstercount; i ++){
+                if(inLineOfSight(main.mainMap, main.pcLoc, ml[i]->location)){
+                    ml[i]->lastSeenPC = main.pcLoc;
+                }
                 ml[i]->lastSeenPC = main.pcLoc;
                 ml[i]->hasPath = false;
                 ml[i]->hasVision = false;
@@ -418,11 +430,10 @@ int main(int argc, char *argv[]){
             moveMonsterCombined(main,m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
             speed = m->speed;
             printf("Press enter to move monster: ");
-            getchar();
+            // if(getchar() == 'q'){
+            //     break;
+            // }
         }
-        
-
-        
 
         int next_time = current_time + (1000 / speed);
         event new_e;
@@ -432,16 +443,14 @@ int main(int argc, char *argv[]){
         insertMinHeap2(&pq, new_e);
         printMinHeap2(&pq);
         if(main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster){
-            printf("Monster %c has killed the PC\n", m->repr);
-
+            // clearScreen();
+            printf("Monster has killed the PC\n");
             printf("---------------------------------------- GG -------------------------------------------\n");
             printGrid(main.mainMap.grid,main.mainMap.lenX, main.mainMap.lenY);
             printf("----------------------------------------- GG ------------------------------------------------------------\n");
-
-            
             break;
         }
-        usleep(5000000);
+        // usleep(5000000);
 
     }
 

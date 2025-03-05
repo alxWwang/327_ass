@@ -122,7 +122,7 @@ void connectRooms(mapObj mainGrid, loc fromPoint, loc toPoint){
         if(lastLoc.x == toPoint.x && lastLoc.y == toPoint.y){
             break;
         }
-        lastLoc = initloc(line[i].x, line[i].y);
+        lastLoc = line[i];
         if (mainGrid.grid[line[i].x][line[i].y].repr == ' '){
             mainGrid.grid[line[i].x][line[i].y] = inittile('#', 0, lastLoc);
         }
@@ -132,6 +132,26 @@ void connectRooms(mapObj mainGrid, loc fromPoint, loc toPoint){
     }
     free(line);
 }
+
+bool inLineOfSight(mapObj mainGrid, loc fromPoint, loc toPoint){
+    loc* line = getStraightLine(mainGrid, fromPoint, toPoint);
+    int i = 0;
+    loc lastLoc = fromPoint;
+    while(true){
+        if(lastLoc.x == toPoint.x && lastLoc.y == toPoint.y){
+            free(line);
+            return true;
+        }
+        lastLoc = line[i];
+        if (mainGrid.grid[line[i].y][line[i].x].hardness != 0){
+            return false;
+        }
+        i++;
+
+    }
+}
+
+
 
 loc addStairs(mapObj mainGrid, char type, bool random , int posX, int posY){
     if(random == false){
@@ -179,6 +199,10 @@ void movePC(mapObj mainGrid,loc* currentLoc, int newY, int newX){
     currentLoc->y = newY; 
     currentLoc->x = newX;
     mainGrid.grid[currentLoc->y][currentLoc->x].isPC = true;
+    if (mainGrid.grid[currentLoc->y][currentLoc->x].repr == ' '){
+        mainGrid.grid[currentLoc->y][currentLoc->x].repr = '#';
+        mainGrid.grid[currentLoc->y][currentLoc->x].hardness = 0;
+    }
 }
 
 monster* addMonster(mapObj mainGrid, bool alive, int status, loc location, loc lastSeen){
@@ -240,6 +264,7 @@ loc erraticLoc(mapObj mainGrid, monster *mon, bool tunnel){
 
 bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, bool telepathic, bool intelligent) {
     loc target;
+    printf("Status: [tunnel: %s, erratic: %s, telepathic: %s, intelligent: %s]\n", tunnel ? "true" : "false", erratic? "true" : "false", telepathic? "true" : "false", intelligent? "true" : "false");
     // Choose the target: telepathic monsters always know the PC's current location.
     if (telepathic) {
         target = main.pcLoc;
@@ -283,17 +308,21 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
                 // Intelligent, non-telepathic: use Djikstra's on the monster's vision.
                 bestLoc = selectNextLocDjikstras(mon->monsterVision, mon, tunnel);
                 printf("Moving using Djikstra's (non-telepathic) to: [%d, %d]\n", bestLoc.x, bestLoc.y);
-                if(mon->hasVision){
-                    for (int i = 0; i< 19+2; i++){
-                        for (int j = 0; j < 79+2; j++){
-                            if (getDistDjikstras(mon->monsterVision.grid[i][j], tunnel) == INT_MAX){
-                                printf(" . ");
-                            }else{
-                                printf("%2d ", getDistDjikstras(mon->monsterVision.grid[i][j], tunnel));
-                            }
+            }
+            mapObj gridToPrint = telepathic ? main.mainMap : mon->monsterVision;
+            if(mon->hasVision||telepathic){
+                for (int i = 0; i< 19+2; i++){
+                    for (int j = 0; j < 79+2; j++){
+                        if (getDistDjikstras(gridToPrint.grid[i][j], tunnel) == INT_MAX){
+                            printf(" . ");
+                        } else if (i == mon->location.y && j == mon->location.x){
+                            printf("\033[31m%2d \033[0m", getDistDjikstras(gridToPrint.grid[i][j], tunnel));
                         }
-                        printf("\n");
+                        else{
+                            printf("%2d ", getDistDjikstras(gridToPrint.grid[i][j], tunnel));
+                        }
                     }
+                    printf("\n");
                 }
             }
         } else {
@@ -304,10 +333,7 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
                 mon->hasPath = true;
             }
             // Check if the next cell is impassable when tunneling is off.
-            if (!tunnel && main.mainMap.grid[mon->path[mon->indexInPath + 1].y]
-                                            [mon->path[mon->indexInPath + 1].x].hardness != 0) {
-                return true;
-            }
+
             mapObj tmp = copyMapObj(&main.mainMap);
             int i =0;
             while(!tmp.grid[mon->path[mon->indexInPath + i].y][mon->path[mon->indexInPath + i].x].isPC){
@@ -330,6 +356,10 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
                     }
                     printf("\n");
                 }
+            }
+            if (!tunnel && main.mainMap.grid[mon->path[mon->indexInPath + 1].y]
+                [mon->path[mon->indexInPath + 1].x].repr == ' ') {
+                return true;
             }
             bestLoc = mon->path[mon->indexInPath+1];
             if(moveMonster(main.mainMap, bestLoc, mon)){
@@ -357,6 +387,10 @@ bool moveMonster(mapObj mainGrid, loc location, monster *mon) {
         return false;
     }
 
+    if(mainGrid.grid[location.y][location.x].isMonster){
+        return false;
+    }
+
     int *cellHardness = &mainGrid.grid[location.y][location.x].hardness;
     printf("Hardness on tile [%d, %d] is %d\n", location.x, location.y, *cellHardness);
     
@@ -371,6 +405,9 @@ bool moveMonster(mapObj mainGrid, loc location, monster *mon) {
         mainGrid.grid[location.y][location.x].isMonster = true;
         mainGrid.grid[location.y][location.x].pMon = mon;
         mon->location = location;
+        if(mainGrid.grid[location.y][location.x].repr == ' '){
+            mainGrid.grid[location.y][location.x].repr = '#';
+        }
         return true;
     }
 }

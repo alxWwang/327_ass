@@ -1,5 +1,8 @@
 {
     "files.associations": {
         "stdbool.h": "c"
-    }
+    },
+    "cSpell.words": [
+        "repr"
+    ]
 }

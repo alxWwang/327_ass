@@ -13,13 +13,12 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
+            "MIMode": "lldb",
             "preLaunchTask": "make",
             "setupCommands": [
                 {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
+                    "description": "Enable pretty-printing for LLDB",
+                    "text": "settings set target.inline-breakpoint-strategy always",
                     "ignoreFailures": true
                 }
             ]
@@ -34,21 +33,20 @@
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
+            "MIMode": "lldb",
             "setupCommands": [
                 {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
+                    "description": "Enable pretty-printing for LLDB",
+                    "text": "settings set target.inline-breakpoint-strategy always",
                     "ignoreFailures": true
                 },
                 {
                     "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
+                    "text": "settings set target.x86-disassembly-flavor intel",
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: gcc build active file",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "preLaunchTask": "C/C++: gcc build active file"
         }
     ]
 }

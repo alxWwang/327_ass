@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <endian.h>
 #include <arpa/inet.h>
 #include <stdio.h>    
 #include <string.h>
@@ -9,6 +8,12 @@
 #include "utils.h"
 #include "linked_list.h"
 #include "map.h"
+
+#if defined(__APPLE__)
+    #include <machine/endian.h>
+#else
+    #include <endian.h>
+#endif
 
 // If you're fixed on 80x21 for the grid, define them
 #define DUNGEON_X 80

@@ -16,6 +16,7 @@ void movePC(mapObj mainGrid,loc* currentLoc, int newY, int newX);
 monster* addMonster(mapObj mainGrid, bool alive, int status, loc location, loc lastSeen);
 stairList createStairs(mapObj mainGrid, int num, char type, bool random, int posX, int posY);
 bool moveMonster(mapObj mainGrid, loc location, monster *mon);
+bool inLineOfSight(mapObj mainGrid, loc fromPoint, loc toPoint);
 // bool moveTelepathicIntelligent(mainMap main, monster *mon, bool tunnel, bool erratic);
 // bool moveTelepathicNonIntelligent(mainMap main, monster *mon, bool tunnel, bool erratic);
 // bool moveNonTelepathicIntelligent(mainMap main, monster *mon, bool tunnel, bool erratic);
