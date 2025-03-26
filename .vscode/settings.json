@@ -8,7 +8,9 @@
         "map.h": "c",
         "load_file.h": "c",
         "save_file.h": "c",
-        "minheap.h": "c"
+        "minheap.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c"
     },
     "cSpell.words": [
         "repr"

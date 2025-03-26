@@ -24,7 +24,7 @@ OBJ = $(SRC:src/%.c=$(OBJ_DIR)/%.o)
 TARGET = ./game
 
 # Libraries (e.g., math)
-LIBS = -lm
+LIBS = -lm -lncurses
 
 # Default rule: compile and link
 $(TARGET): $(OBJ)

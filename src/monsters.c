@@ -83,11 +83,11 @@ loc erraticLoc(mapObj mainGrid, monster *mon, bool tunnel){
 
 bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, bool telepathic, bool intelligent) {
     loc target;
-    printf("Status: [tunnel: %s, erratic: %s, telepathic: %s, intelligent: %s]\n", 
-           tunnel ? "true" : "false", 
-           erratic ? "true" : "false", 
-           telepathic ? "true" : "false", 
-           intelligent ? "true" : "false");
+    // printf("Status: [tunnel: %s, erratic: %s, telepathic: %s, intelligent: %s]\n", 
+    //        tunnel ? "true" : "false", 
+    //        erratic ? "true" : "false", 
+    //        telepathic ? "true" : "false", 
+    //        intelligent ? "true" : "false");
     
     if (telepathic) {
         target = main.pcLoc;
@@ -101,7 +101,7 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
             mon->hasVision = false;
         }
         if(target.x == main.pcLoc.x && target.y == main.pcLoc.y){
-            printf("The player is killed!");
+            // printf("The player is killed!");
         }
         return true;
     }
@@ -113,19 +113,19 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
             mon->hasPath = false;
             mon->hasVision = false;
         }
-        printf("Moving erratically to: [%d, %d]\n", bestLoc.x, bestLoc.y);
+        // printf("Moving erratically to: [%d, %d]\n", bestLoc.x, bestLoc.y);
     } else {
         if (intelligent) {
             if (telepathic) {
                 bestLoc = selectNextLocDjikstras(main.mainMap, mon, tunnel);
-                printf("Moving using Djikstra's (telepathic) to: [%d, %d]\n", bestLoc.x, bestLoc.y);
+                // printf("Moving using Djikstra's (telepathic) to: [%d, %d]\n", bestLoc.x, bestLoc.y);
             } else {
                 if(!mon->hasVision){
                     djikstras(mon->monsterVision, mon->lastSeenPC, tunnel);
                     mon->hasVision = true;
                 }
                 bestLoc = selectNextLocDjikstras(mon->monsterVision, mon, tunnel);
-                printf("Moving using Djikstra's (non-telepathic) to: [%d, %d]\n", bestLoc.x, bestLoc.y);
+                // printf("Moving using Djikstra's (non-telepathic) to: [%d, %d]\n", bestLoc.x, bestLoc.y);
             }
             
             // mapObj gridToPrint = telepathic ? main.mainMap : mon->monsterVision;
@@ -161,7 +161,7 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
                 mon->indexInPath += 1;
             }
             
-            printf("Moving using straight-line to: [%d, %d]\n", bestLoc.x, bestLoc.y);
+            // printf("Moving using straight-line to: [%d, %d]\n", bestLoc.x, bestLoc.y);
             return false;
         }
     }
@@ -173,7 +173,7 @@ bool moveMonsterCombined(mainMap main, monster *mon, bool tunnel, bool erratic, 
 bool moveMonster(mapObj mainGrid, loc location, monster *mon) {
     if (location.x < 0 || location.x >= mainGrid.lenX ||
         location.y < 0 || location.y >= mainGrid.lenY) {
-        printf("Out of bounds: cannot move monster to [%d, %d]\n", location.x, location.y);
+        // printf("Out of bounds: cannot move monster to [%d, %d]\n", location.x, location.y);
         return false;
     }
 
@@ -182,7 +182,7 @@ bool moveMonster(mapObj mainGrid, loc location, monster *mon) {
     }
 
     int *cellHardness = &mainGrid.grid[location.y][location.x].hardness;
-    printf("Hardness on tile [%d, %d] is %d\n", location.x, location.y, *cellHardness);
+    // printf("Hardness on tile [%d, %d] is %d\n", location.x, location.y, *cellHardness);
     
     if (*cellHardness > 85) {
         *cellHardness -= 85;

@@ -15,6 +15,7 @@
 #include "header/load_file.h"
 #include "header/save_file.h"
 #include <arpa/inet.h>
+#include <ncurses.h>
 
 
 #ifdef _WIN32
@@ -25,8 +26,119 @@
 
 struct Node *pHead = NULL;
 
-void clearScreen() {
-    system(CLEAR_CMD);
+void clearScreen(WINDOW *win) {
+    wrefresh(win);
+    wrefresh(win);
+}
+#include <ncurses.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+
+
+// This function displays the monster list in its own window.
+void displayMonsterList(monster **monsters, int monsterCount, loc pc) {
+    // Define window size (you can adjust these values as needed)
+    int list_win_height = 15;
+    int list_win_width  = 50;
+    int starty = (LINES - list_win_height) / 2;
+    int startx = (COLS - list_win_width) / 2;
+    
+    WINDOW *list_win = newwin(list_win_height, list_win_width, starty, startx);
+    keypad(list_win, TRUE);  // Enable arrow keys for this window
+    // Draw a border around the window
+    box(list_win, 0, 0);
+    mvwprintw(list_win, 0, 2, " Monster List ");
+    wrefresh(list_win);
+
+    int offset = 0;
+    int maxLines = list_win_height - 2; // accounting for border rows
+    int ch;
+    bool done = false;
+
+    while (!done) {
+        // Clear inner area and redraw border
+        werase(list_win);
+        box(list_win, 0, 0);
+        mvwprintw(list_win, 0, 2, " Monster List ");
+        
+        // Display monsters from offset up to offset+maxLines
+        for (int i = 0; i < maxLines && (i + offset) < monsterCount; i++) {
+            monster *m = monsters[i + offset];
+            int diffX = m->location.x - pc.x;
+            int diffY = m->location.y - pc.y;
+            char vertical[20] = "";
+            char horizontal[20] = "";
+            
+            if (diffY < 0)
+                sprintf(vertical, "%d north", -diffY);
+            else if (diffY > 0)
+                sprintf(vertical, "%d south", diffY);
+            
+            if (diffX < 0)
+                sprintf(horizontal, "%d west", -diffX);
+            else if (diffX > 0)
+                sprintf(horizontal, "%d east", diffX);
+            
+            char line[100] = "";
+            if (strlen(vertical) > 0 && strlen(horizontal) > 0)
+                sprintf(line, "%c, %s and %s", m->repr, vertical, horizontal);
+            else if (strlen(vertical) > 0)
+                sprintf(line, "%c, %s", m->repr, vertical);
+            else if (strlen(horizontal) > 0)
+                sprintf(line, "%c, %s", m->repr, horizontal);
+            else
+                sprintf(line, "%c, at PC", m->repr);
+            
+            mvwprintw(list_win, i + 1, 1, "%s", line); 
+        }
+        wrefresh(list_win);
+        
+        // Get user input for scrolling or exit.
+        ch = wgetch(list_win);
+        switch (ch) {
+            case KEY_UP:
+                if (offset > 0)
+                    offset--;
+                break;
+            case KEY_DOWN:
+                if (offset < monsterCount - maxLines)
+                    offset++;
+                break;
+            case 27:  // ESC key
+                done = true;
+                break;
+            default:
+                break;
+        }
+    }
+    
+    delwin(list_win);
+    touchwin(stdscr);
+    refresh();
+}
+
+
+void printGridMV(tile **grid, int gridSizeX, int gridSizeY, WINDOW *win){
+    for (int i = 0; i< gridSizeY; i++){
+        for (int j = 0; j < gridSizeX; j++){
+            tile* g = &(grid[i][j]);
+            if (g->isPC){
+                wattron(win, COLOR_PAIR(1));
+                mvwprintw(win, i+1,j+1,"@");
+                wattroff(win, COLOR_PAIR(1));
+            }
+            else if (g->isMonster){
+                wattron(win, COLOR_PAIR(2));
+                mvwprintw(win, i+1,j+1,"%c",g->pMon->repr);
+                wattroff(win, COLOR_PAIR(2));
+            }
+            else{
+                mvwprintw(win, i+1,j+1,"%c", g->repr);
+            }
+        }
+    }
 }
 
 mainMap generate(int gridSizeX, int gridSizeY, int min_count, int max_count){
@@ -122,41 +234,125 @@ void freeGrid(mapObj **grid, int rows) {
     free(grid);
 }
 
-bool handleInput(mainMap *main, bool bot){
-    printf("select w/a/s/d to move, q to quit\n");
+bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
     char c;
-    if (!bot){
-        c = getchar();
-        int ch;
-        while ((ch = getchar()) != '\n' && ch != EOF) {}
-    }else{
-        char* line = "wasd";
-        c = line[rand() % 4];
-    }
+
+    do {
+        mvwprintw(win, 22, 1, "Select: y/k/u/h/j/l/b/n, m: MonsterList, Q: Quit");
+        wrefresh(win);
+        if (!bot) {
+            c = wgetch(win);
+        } else {
+            const char *line = "ykuhljbn";
+            c = line[rand() % 8];
+        }
+        // If user pressed 'm', display the monster list and loop again.
+        if (c == 'm') {
+            displayMonsterList(mon, 10, main->pcLoc);
+            // After closing the monster list window, reprint the grid and prompt again.
+            printGridMV(main->mainMap.grid, main->mainMap.lenX, main->mainMap.lenY, win);
+            wrefresh(win);
+        }
+    } while (c == 'm');  // Loop as long as the user presses 'm'
+
+    int x = main->pcLoc.x;
+    int y = main->pcLoc.y;
+    int maxX = main->mainMap.lenX - 1;
+    int maxY = main->mainMap.lenY - 1;
 
     switch (c) {
-        case 'w':
-            if (main->pcLoc.y > 0) {
-                movePC(main->mainMap, &main->pcLoc, main->pcLoc.y - 1, main->pcLoc.x);
-            };
+        // Move up-left
+        case '7':
+        case 'y':
+            if (y > 0 && x > 0) {
+                movePC(main->mainMap, &main->pcLoc, y - 1, x - 1);
+            }
             break;
-        case 's':
-            if (main->pcLoc.y < main->mainMap.lenY - 1){
-                movePC(main->mainMap, &main->pcLoc, main->pcLoc.y + 1, main->pcLoc.x);
-            };
+
+        // Move up
+        case '8':
+        case 'k':
+            if (y > 0) {
+                movePC(main->mainMap, &main->pcLoc, y - 1, x);
+            }
             break;
-        case 'a':
-            if (main->pcLoc.x > 0){
-                movePC(main->mainMap, &main->pcLoc, main->pcLoc.y, main->pcLoc.x - 1);
-            };
+
+        // Move up-right
+        case '9':
+        case 'u':
+            if (y > 0 && x < maxX) {
+                movePC(main->mainMap, &main->pcLoc, y - 1, x + 1);
+            }
             break;
-        case 'd':
-            if (main->pcLoc.x < main->mainMap.lenX - 1) {
-                movePC(main->mainMap, &main->pcLoc, main->pcLoc.y, main->pcLoc.x + 1);
-            };
+
+        // Move right
+        case '6':
+        case 'l':
+            if (x < maxX) {
+                movePC(main->mainMap, &main->pcLoc, y, x + 1);
+            }
             break;
-        case 'q':
-            return true;  // signal quit
+
+        // Move down-right
+        case '3':
+        case 'n':
+            if (y < maxY && x < maxX) {
+                movePC(main->mainMap, &main->pcLoc, y + 1, x + 1);
+            }
+            break;
+
+        // Move down
+        case '2':
+        case 'j':
+            if (y < maxY) {
+                movePC(main->mainMap, &main->pcLoc, y + 1, x);
+            }
+            break;
+
+        // Move down-left
+        case '1':
+        case 'b':
+            if (y < maxY && x > 0) {
+                movePC(main->mainMap, &main->pcLoc, y + 1, x - 1);
+            }
+            break;
+
+        // Move left
+        case '4':
+        case 'h':
+            if (x > 0) {
+                movePC(main->mainMap, &main->pcLoc, y, x - 1);
+            }
+            break;
+
+        // Go down stairs
+        case '>':
+            // Only if on a '>' tile
+            if (main->mainMap.grid[y][x].repr == '>') {
+                // Logic to descend to new level
+                // e.g., generate new dungeon, place PC, etc.
+            }
+            break;
+
+        // Go up stairs
+        case '<':
+            // Only if on a '<' tile
+            if (main->mainMap.grid[y][x].repr == '<') {
+                // Logic to ascend to new level
+            }
+            break;
+
+        // Rest for a turn
+        // (no movement, but still uses one turn)
+        case '5':
+        case ' ':
+        case '.':
+            // Do nothing except consume turn
+            break;
+        // Quit the game
+        case 'Q':
+            return true;  // Signal that the user wants to quit
+
         default:
             // Ignore other keys
             break;
@@ -165,72 +361,99 @@ bool handleInput(mainMap *main, bool bot){
     return false;
 }
 
-void runGameLoop(mainMap main, int ct) {
+void runGameLoop(mainMap mainState, int ct) {
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    if (has_colors()) {
+        start_color();
+        init_pair(1, COLOR_GREEN, COLOR_BLACK);  // PC color
+        init_pair(2, COLOR_RED, COLOR_BLACK);      // Monster color
+    }
+    
+    // Create the main window for status and input.
+    WINDOW *win = newwin(24, 85, 0, 0);
+    wrefresh(win);
+
+    // Create a grid window that is sized based on the grid plus border,
+    // and center it on the screen.
+    int grid_win_height = mainState.mainMap.lenY + 2;
+    int grid_win_width  = mainState.mainMap.lenX + 2;
+    int starty = (LINES - grid_win_height) / 2;
+    int startx = (COLS - grid_win_width) / 2;
+    WINDOW *grid_win = newwin(grid_win_height, grid_win_width, starty, startx);
+    box(grid_win, 0, 0);
+    wrefresh(grid_win);
+
     int monstercount = ct;
     monster* ml[monstercount];
     MinHeap pq;
-
     pq.size = 0;
-    pq.capacity = 50; // or however large you need
+    pq.capacity = 50;
     pq.array = malloc(sizeof(HeapNode) * pq.capacity);
 
     HeapData data;
     data.eventData.time = 0;
-    data.eventData.type = 1;
+    data.eventData.type = 1; // PC turn.
     insertMinHeap(&pq, data, EVENT, false);
-    int deadMonsterCount = 0;
-
+    
+    // Add monsters.
     for (int i = 0; i < monstercount; i++) {
         unsigned int monsterType = rand() % 16;
-        int randomX = 0;
-        int randomY = 0;
+        int randomX, randomY;
         do {
-            randomX = rand() % main.mainMap.lenX;
-            randomY = rand() % main.mainMap.lenY;
-        } while(main.mainMap.grid[randomY][randomX].repr != '.' || main.mainMap.grid[randomY][randomX].isMonster || main.mainMap.grid[randomY][randomX].isPC);
-        ml[i] = addMonster(main.mainMap, true, monsterType, initloc(randomX, randomY), initloc(randomX, randomY));
-        HeapData data;
-        data.eventData.time = 0;
-        data.eventData.mon = ml[i];
-        data.eventData.type = 0;
-        insertMinHeap(&pq, data, EVENT, false);
+            randomX = rand() % mainState.mainMap.lenX;
+            randomY = rand() % mainState.mainMap.lenY;
+        } while (mainState.mainMap.grid[randomY][randomX].repr != '.' ||
+                 mainState.mainMap.grid[randomY][randomX].isMonster ||
+                 mainState.mainMap.grid[randomY][randomX].isPC);
+        ml[i] = addMonster(mainState.mainMap, true, monsterType, initloc(randomX, randomY), initloc(randomX, randomY));
+        HeapData mData;
+        mData.eventData.time = 0;
+        mData.eventData.mon = ml[i];
+        mData.eventData.type = 0;
+        insertMinHeap(&pq, mData, EVENT, false);
     }
-
+    
+    int deadMonsterCount = 0;
     while (!isEmpty(&pq)) {
-        clearScreen();
+        clearScreen(win);
+        clearScreen(grid_win);
         event current = extractMin(&pq, false).data.eventData;
         int current_time = current.time;
+        monster *m = NULL;
+        int speed = 0;
         
-        monster *m;
-        int speed;
-
-        // printf("now is turn: %d\n", current_time);
-        if (current.type == 0) {
-            printf("------------------------------------ BOT %c -------------------------------------\n", current.mon->repr);
-        } else {
-            // PC
-            printf("------------------------------------   PC   ------------------------------------\n");
-        }
+        // // Display header in the main window.
+        // if (current.type == 0) {
+        //     mvwprintw(win, 0, 0, "-------------------------------------- BOT %c ---------------------------------------", current.mon->repr);
+        // } else {
+        //     mvwprintw(win, 0, 0, "--------------------------------------   PC   ---------------------------------------");
+        // }
         
-        printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
-        printf("--------------------------------------------------------------------------------\n");
-        if (current.type == 1) {
-            if (handleInput(&main, false)) {
+        // Display the grid in the grid window.
+        printGridMV(mainState.mainMap.grid, mainState.mainMap.lenX, mainState.mainMap.lenY, grid_win);
+        // mvwprintw(win, 23, 0, "------------------------------------------------------------------------------------");
+        wrefresh(win);
+        wrefresh(grid_win);
+        
+        if (current.type == 1) {  // PC turn.
+            if (handleInput(&mainState, false, grid_win, ml)) {
                 break;
-            };
+            }
             speed = 10;
-            djikstras(main.mainMap, main.pcLoc, false);
-            djikstras(main.mainMap, main.pcLoc, true);
-            m = NULL;
-            
-            
+            djikstras(mainState.mainMap, mainState.pcLoc, false);
+            djikstras(mainState.mainMap, mainState.pcLoc, true);
             for (int i = 0; i < monstercount; i++) {
                 if(ml[i]->alive == false){
+                    deadMonsterCount =0;
                     deadMonsterCount++;
                     continue;
                 }
-                if (inLineOfSight(main.mainMap, main.pcLoc, ml[i]->location)) {
-                    ml[i]->lastSeenPC = main.pcLoc;
+                if (inLineOfSight(mainState.mainMap, mainState.pcLoc, ml[i]->location)) {
+                    ml[i]->lastSeenPC = mainState.pcLoc;
                 }
                 ml[i]->hasPath = false;
                 ml[i]->hasVision = false;
@@ -238,39 +461,40 @@ void runGameLoop(mainMap main, int ct) {
                 //     break;
                 // }
             }
-            
-        } else {
-            m = current.mon;
-            if(m->alive == false){
-                continue;
-            }
-            moveMonsterCombined(main, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
-            speed = m->speed;
-            // printf("Press enter to move monster: ");
-            // if(getchar() == 'q'){
-            //     break;
-            // }
-        }
 
+
+        } else {  // Monster turn.
+            m = current.mon;
+            if (!m->alive)
+                continue;
+            moveMonsterCombined(mainState, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
+            speed = m->speed;
+        }
+        
         int next_time = current_time + (1000 / speed);
-        HeapData data;
-        data.eventData.time = next_time;
-        data.eventData.mon = m;
-        data.eventData.type = current.type;
-        insertMinHeap(&pq, data, EVENT, false);
-        if (main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isMonster || deadMonsterCount == monstercount) {
-            clearScreen();
-            main.mainMap.grid[main.pcLoc.y][main.pcLoc.x].isPC = false;
-            printf("%s",deadMonsterCount == monstercount ? "PC wins!\n":"Monster has killed the PC\n");
-            printf("------------------------------------   GG   ------------------------------------\n");
-            printGrid(main.mainMap.grid, main.mainMap.lenX, main.mainMap.lenY);
-            printf("------------------------------------   GG   ------------------------------------\n");
+        HeapData newData;
+        newData.eventData.time = next_time;
+        newData.eventData.mon = m;
+        newData.eventData.type = current.type;
+        insertMinHeap(&pq, newData, EVENT, false);
+        
+        if (mainState.mainMap.grid[mainState.pcLoc.y][mainState.pcLoc.x].isMonster || deadMonsterCount == monstercount) {
+            werase(win);
+            werase(grid_win);
+            mvwprintw(win, 0, 0, "%s", deadMonsterCount == monstercount ? "PC wins!" : "Monster has killed the PC");
+            printGridMV(mainState.mainMap.grid, mainState.mainMap.lenX, mainState.mainMap.lenY, grid_win);
+            wrefresh(win);
+            wrefresh(grid_win);
+            wgetch(win);
             break;
         }
-        usleep(250000);
+        
+        // usleep(250000);
     }
-
     free(pq.array);
+    delwin(grid_win);
+    delwin(win);
+    endwin();
 }
 
 int main(int argc, char *argv[]){
