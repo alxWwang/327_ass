@@ -28,7 +28,6 @@ struct Node *pHead = NULL;
 
 void clearScreen(WINDOW *win) {
     wrefresh(win);
-    wrefresh(win);
 }
 #include <ncurses.h>
 #include <stdlib.h>
@@ -36,6 +35,14 @@ void clearScreen(WINDOW *win) {
 #include <stdio.h>
 
 
+typedef struct LevelNode {
+    mainMap level;
+    monster* ml[50];                // Your dungeon level data
+    struct LevelNode* prev;       // Pointer to the previous level (upstairs)
+    struct LevelNode* next;       // Pointer to the next level (downstairs)
+} LevelNode;
+
+void moveMaps(LevelNode* current, int dir, int nummon);
 
 // This function displays the monster list in its own window.
 void displayMonsterList(monster **monsters, int monsterCount, loc pc) {
@@ -118,7 +125,6 @@ void displayMonsterList(monster **monsters, int monsterCount, loc pc) {
     touchwin(stdscr);
     refresh();
 }
-
 
 void printGridMV(tile **grid, int gridSizeX, int gridSizeY, WINDOW *win){
     for (int i = 0; i< gridSizeY; i++){
@@ -234,7 +240,7 @@ void freeGrid(mapObj **grid, int rows) {
     free(grid);
 }
 
-bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
+bool handleInput(LevelNode* lNode, mainMap *main, bool bot, WINDOW *win, monster **mon, int monsterCount ) {
     char c;
 
     do {
@@ -248,10 +254,13 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         }
         // If user pressed 'm', display the monster list and loop again.
         if (c == 'm') {
-            displayMonsterList(mon, 10, main->pcLoc);
+            displayMonsterList(mon, monsterCount, main->pcLoc);
             // After closing the monster list window, reprint the grid and prompt again.
             printGridMV(main->mainMap.grid, main->mainMap.lenX, main->mainMap.lenY, win);
             wrefresh(win);
+        }
+        if (c == ERR){
+            return false;
         }
     } while (c == 'm');  // Loop as long as the user presses 'm'
 
@@ -264,6 +273,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move up-left
         case '7':
         case 'y':
+        case 'q':
             if (y > 0 && x > 0) {
                 movePC(main->mainMap, &main->pcLoc, y - 1, x - 1);
             }
@@ -272,6 +282,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move up
         case '8':
         case 'k':
+        case 'w':
             if (y > 0) {
                 movePC(main->mainMap, &main->pcLoc, y - 1, x);
             }
@@ -280,6 +291,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move up-right
         case '9':
         case 'u':
+        case 'e':
             if (y > 0 && x < maxX) {
                 movePC(main->mainMap, &main->pcLoc, y - 1, x + 1);
             }
@@ -288,6 +300,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move right
         case '6':
         case 'l':
+        case 'd':
             if (x < maxX) {
                 movePC(main->mainMap, &main->pcLoc, y, x + 1);
             }
@@ -296,6 +309,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move down-right
         case '3':
         case 'n':
+        case 'x':
             if (y < maxY && x < maxX) {
                 movePC(main->mainMap, &main->pcLoc, y + 1, x + 1);
             }
@@ -304,6 +318,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move down
         case '2':
         case 'j':
+        case 's':
             if (y < maxY) {
                 movePC(main->mainMap, &main->pcLoc, y + 1, x);
             }
@@ -312,6 +327,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move down-left
         case '1':
         case 'b':
+        case 'z':
             if (y < maxY && x > 0) {
                 movePC(main->mainMap, &main->pcLoc, y + 1, x - 1);
             }
@@ -320,6 +336,7 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         // Move left
         case '4':
         case 'h':
+        case 'a':
             if (x > 0) {
                 movePC(main->mainMap, &main->pcLoc, y, x - 1);
             }
@@ -329,6 +346,8 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         case '>':
             // Only if on a '>' tile
             if (main->mainMap.grid[y][x].repr == '>') {
+                werase(win);
+                moveMaps(lNode, -1, monsterCount);
                 // Logic to descend to new level
                 // e.g., generate new dungeon, place PC, etc.
             }
@@ -338,6 +357,8 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
         case '<':
             // Only if on a '<' tile
             if (main->mainMap.grid[y][x].repr == '<') {
+                werase(win);
+                moveMaps(lNode, 1, monsterCount);
                 // Logic to ascend to new level
             }
             break;
@@ -361,10 +382,17 @@ bool handleInput(mainMap *main, bool bot, WINDOW *win, monster **mon) {
     return false;
 }
 
-void runGameLoop(mainMap mainState, int ct) {
+void runGameLoop(LevelNode *lNode, int ct, bool generate) {
+
+    mainMap *mainState = &(lNode->level);
+
+    djikstras(mainState->mainMap, mainState->pcLoc, false);
+    djikstras(mainState->mainMap, mainState->pcLoc, true);
+
     initscr();
     cbreak();
     noecho();
+    halfdelay(10);
     keypad(stdscr, TRUE);
 
     if (has_colors()) {
@@ -373,22 +401,26 @@ void runGameLoop(mainMap mainState, int ct) {
         init_pair(2, COLOR_RED, COLOR_BLACK);      // Monster color
     }
     
-    // Create the main window for status and input.
-    WINDOW *win = newwin(24, 85, 0, 0);
-    wrefresh(win);
 
     // Create a grid window that is sized based on the grid plus border,
     // and center it on the screen.
-    int grid_win_height = mainState.mainMap.lenY + 2;
-    int grid_win_width  = mainState.mainMap.lenX + 2;
+    int grid_win_height = mainState->mainMap.lenY + 2;
+    int grid_win_width  = mainState->mainMap.lenX + 2;
     int starty = (LINES - grid_win_height) / 2;
     int startx = (COLS - grid_win_width) / 2;
+
+    // Create the main window for status and input.
+    WINDOW *win = newwin(1, grid_win_width, starty-1, startx);
+    wrefresh(win);
+
+    mvwprintw(win, 0, 0, "Welcome to the Dungeon! Use y, k, u, h, j, l, b, n for movement.");
+    wrefresh(win);
+
     WINDOW *grid_win = newwin(grid_win_height, grid_win_width, starty, startx);
     box(grid_win, 0, 0);
     wrefresh(grid_win);
 
     int monstercount = ct;
-    monster* ml[monstercount];
     MinHeap pq;
     pq.size = 0;
     pq.capacity = 50;
@@ -399,17 +431,22 @@ void runGameLoop(mainMap mainState, int ct) {
     data.eventData.type = 1; // PC turn.
     insertMinHeap(&pq, data, EVENT, false);
     
+    if (generate){
+        for (int i = 0; i < monstercount; i++) {
+            unsigned int monsterType = rand() % 16;
+            int randomX, randomY;
+            do {
+                randomX = rand() % mainState->mainMap.lenX;
+                randomY = rand() % mainState->mainMap.lenY;
+            } while (mainState->mainMap.grid[randomY][randomX].repr != '.' ||
+                    mainState->mainMap.grid[randomY][randomX].isMonster ||
+                    mainState->mainMap.grid[randomY][randomX].isPC);
+            lNode->ml[i] = addMonster(mainState->mainMap, true, monsterType, initloc(randomX, randomY), initloc(randomX, randomY));
+        }
+    }
+    monster **ml = lNode->ml;
     // Add monsters.
     for (int i = 0; i < monstercount; i++) {
-        unsigned int monsterType = rand() % 16;
-        int randomX, randomY;
-        do {
-            randomX = rand() % mainState.mainMap.lenX;
-            randomY = rand() % mainState.mainMap.lenY;
-        } while (mainState.mainMap.grid[randomY][randomX].repr != '.' ||
-                 mainState.mainMap.grid[randomY][randomX].isMonster ||
-                 mainState.mainMap.grid[randomY][randomX].isPC);
-        ml[i] = addMonster(mainState.mainMap, true, monsterType, initloc(randomX, randomY), initloc(randomX, randomY));
         HeapData mData;
         mData.eventData.time = 0;
         mData.eventData.mon = ml[i];
@@ -419,8 +456,13 @@ void runGameLoop(mainMap mainState, int ct) {
     
     int deadMonsterCount = 0;
     while (!isEmpty(&pq)) {
-        clearScreen(win);
-        clearScreen(grid_win);
+        werase(win);
+        werase(grid_win);
+
+        mvwprintw(win, 0, 0, "PC at (%d, %d)  -  Monsters remaining: %d",
+                  mainState->pcLoc.x, mainState->pcLoc.y, monstercount - deadMonsterCount);
+        wrefresh(win);
+
         event current = extractMin(&pq, false).data.eventData;
         int current_time = current.time;
         monster *m = NULL;
@@ -434,26 +476,29 @@ void runGameLoop(mainMap mainState, int ct) {
         // }
         
         // Display the grid in the grid window.
-        printGridMV(mainState.mainMap.grid, mainState.mainMap.lenX, mainState.mainMap.lenY, grid_win);
+        printGridMV(mainState->mainMap.grid, mainState->mainMap.lenX, mainState->mainMap.lenY, grid_win);
         // mvwprintw(win, 23, 0, "------------------------------------------------------------------------------------");
         wrefresh(win);
         wrefresh(grid_win);
         
         if (current.type == 1) {  // PC turn.
-            if (handleInput(&mainState, false, grid_win, ml)) {
+            nodelay(grid_win, FALSE);
+            if (handleInput(lNode, mainState, false, grid_win, ml, monstercount)) {
+                exit(0);
                 break;
             }
+            nodelay(grid_win, TRUE);
             speed = 10;
-            djikstras(mainState.mainMap, mainState.pcLoc, false);
-            djikstras(mainState.mainMap, mainState.pcLoc, true);
+            djikstras(mainState->mainMap, mainState->pcLoc, false);
+            djikstras(mainState->mainMap, mainState->pcLoc, true);
+            deadMonsterCount = 0;
             for (int i = 0; i < monstercount; i++) {
                 if(ml[i]->alive == false){
-                    deadMonsterCount =0;
                     deadMonsterCount++;
                     continue;
                 }
-                if (inLineOfSight(mainState.mainMap, mainState.pcLoc, ml[i]->location)) {
-                    ml[i]->lastSeenPC = mainState.pcLoc;
+                if (inLineOfSight(mainState->mainMap, mainState->pcLoc, ml[i]->location)) {
+                    ml[i]->lastSeenPC = mainState->pcLoc;
                 }
                 ml[i]->hasPath = false;
                 ml[i]->hasVision = false;
@@ -467,7 +512,7 @@ void runGameLoop(mainMap mainState, int ct) {
             m = current.mon;
             if (!m->alive)
                 continue;
-            moveMonsterCombined(mainState, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
+            moveMonsterCombined(*mainState, m, m->tuneling, m->erratic, m->telepathy, m->intelligence);
             speed = m->speed;
         }
         
@@ -478,23 +523,78 @@ void runGameLoop(mainMap mainState, int ct) {
         newData.eventData.type = current.type;
         insertMinHeap(&pq, newData, EVENT, false);
         
-        if (mainState.mainMap.grid[mainState.pcLoc.y][mainState.pcLoc.x].isMonster || deadMonsterCount == monstercount) {
+        if (mainState->mainMap.grid[mainState->pcLoc.y][mainState->pcLoc.x].isMonster || deadMonsterCount == monstercount) {
             werase(win);
             werase(grid_win);
             mvwprintw(win, 0, 0, "%s", deadMonsterCount == monstercount ? "PC wins!" : "Monster has killed the PC");
-            printGridMV(mainState.mainMap.grid, mainState.mainMap.lenX, mainState.mainMap.lenY, grid_win);
+            printGridMV(mainState->mainMap.grid, mainState->mainMap.lenX, mainState->mainMap.lenY, grid_win);
             wrefresh(win);
             wrefresh(grid_win);
+            nodelay(win, FALSE);
             wgetch(win);
+            exit(0);
             break;
         }
-        
-        // usleep(250000);
     }
     free(pq.array);
     delwin(grid_win);
     delwin(win);
     endwin();
+}
+
+LevelNode* createLevelNode(mainMap levelData) {
+    LevelNode* node = malloc(sizeof(LevelNode));
+    if (!node) {
+        // Handle allocation error
+        return NULL;
+    }
+    node->level = levelData;
+    for (int i = 0; i < 50; i++) {
+        node->ml[i] = NULL;
+    }
+    node->prev = NULL;
+    node->next = NULL;
+    return node;
+}
+
+void insertAfter(LevelNode* current, LevelNode* newNode) {
+    if (!current || !newNode) return;
+    newNode->next = current->next;
+    newNode->prev = current;
+    if (current->next)
+        current->next->prev = newNode;
+    current->next = newNode;
+}
+
+// Insert a new node before the current node
+void insertBefore(LevelNode* current, LevelNode* newNode) {
+    if (!current || !newNode) return;
+    newNode->prev = current->prev;
+    newNode->next = current;
+    if (current->prev)
+        current->prev->next = newNode;
+    current->prev = newNode;
+}
+
+void moveMaps(LevelNode* current, int dir, int nummon){
+    clear();
+    refresh();
+    if (dir == -1){
+        //go down
+        if (current->prev == NULL){
+            insertBefore(current, createLevelNode(generate(79,19,6,6)));
+            runGameLoop(current->prev, nummon, true);
+        }else{
+            runGameLoop(current->prev, nummon, false);
+        }
+    }else{
+        if (current->next == NULL){
+            insertAfter(current, createLevelNode(generate(79,19,6,6)));
+            runGameLoop(current->next, nummon, true);
+        }else{
+            runGameLoop(current->next, nummon, false);
+        }
+    }
 }
 
 int main(int argc, char *argv[]){
@@ -560,11 +660,9 @@ int main(int argc, char *argv[]){
         }
     }
     // bool erratic, bool tunnel, bool telepathic, bool intelligent
-    
-    djikstras(main.mainMap, main.pcLoc, false);
-    djikstras(main.mainMap, main.pcLoc, true);
-
-    runGameLoop(main, nummon);
+ 
+    LevelNode* mainLevel = createLevelNode(main);
+    runGameLoop(mainLevel, nummon, true);
 
     return 0;
 }
